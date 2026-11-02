@@ -88,3 +88,4 @@
 
 .modal-gallery img,.modal-gallery.single-image img{object-fit:contain}
 
+.inventory-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
