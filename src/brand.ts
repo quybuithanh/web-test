@@ -4,7 +4,6 @@ export const brand = {
   description: 'Đồ 2hand tuyển chọn, độ mới cao. Mỗi món đồ cũ mở ra một chương mới.',
   email: 'quy.bt2006@gmail.com',
   facebook: 'https://www.facebook.com/buithanhquy2006',
-  messengerUrl: 'https://www.facebook.com/messages/t/buithanhquy2006',
   instagram: '#',
   checkoutUrl: '',
   shippingPolicy: '#shipping',
