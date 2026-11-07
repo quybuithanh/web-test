@@ -8,6 +8,7 @@ create table if not exists public.products (
   category text not null,
   category_label text not null,
   audience text not null default 'NAM' check (audience in ('NỮ', 'NAM')),
+  sold boolean not null default false,
   image text not null,
   alt text not null default '',
   color text not null default '',
@@ -19,6 +20,8 @@ create table if not exists public.products (
   images jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
+
+alter table public.products add column if not exists sold boolean not null default false;
 
 alter table public.products enable row level security;
 grant select, insert, update, delete on public.products to anon, authenticated;
@@ -43,3 +46,27 @@ values
   ('sweat-05', 'Heavyweight Crewneck', 680000, 'Áo nỉ', 'Tops', 'NAM', 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85', 'Áo sweatshirt nỉ dày màu trung tính', 'Heather grey', 'L / XL', 'Like new · 9/10', '1 of 1', 'Crewneck nỉ dày, phom relaxed dễ mặc. Món essential cho những ngày trời se lạnh.', 'Cotton fleece', '["https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85"]'::jsonb),
   ('bag-06', 'Everyday Crossbody', 520000, 'Phụ kiện', 'Accessories', 'NAM', 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85', 'Túi đeo chéo nylon màu đen', 'Black', 'One size', 'Excellent · 8.5/10', null, 'Túi nhỏ gọn, nhiều ngăn và đủ chỗ cho những món đồ cần mang theo mỗi ngày.', 'Nylon', '["https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85"]'::jsonb)
 on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('product-images', 'product-images', true, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public can view product images" on storage.objects;
+create policy "Public can view product images"
+on storage.objects for select to public using (bucket_id = 'product-images');
+
+drop policy if exists "Store owner can upload product images" on storage.objects;
+create policy "Store owner can upload product images"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'product-images' and lower((select auth.jwt() ->> 'email')) = 'quy.bt2006@gmail.com');
+
+drop policy if exists "Store owner can update product images" on storage.objects;
+create policy "Store owner can update product images"
+on storage.objects for update to authenticated
+using (bucket_id = 'product-images' and lower((select auth.jwt() ->> 'email')) = 'quy.bt2006@gmail.com')
+with check (bucket_id = 'product-images' and lower((select auth.jwt() ->> 'email')) = 'quy.bt2006@gmail.com');
+
+drop policy if exists "Store owner can delete product images" on storage.objects;
+create policy "Store owner can delete product images"
+on storage.objects for delete to authenticated
+using (bucket_id = 'product-images' and lower((select auth.jwt() ->> 'email')) = 'quy.bt2006@gmail.com');
