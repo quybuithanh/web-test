@@ -79,11 +79,11 @@ function App() {
   const [productForm, setProductForm] = useState<Product | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadNotice, setImageUploadNotice] = useState("");
-  const openAdmin = () => {
-    setAdmin(true);
-    window.history.pushState({}, "", "/admin");
-    window.scrollTo(0, 0);
-  };
+  // const openAdmin = () => {
+  //   setAdmin(true);
+  //   window.history.pushState({}, "", "/admin");
+  //   window.scrollTo(0, 0);
+  // };
   const closeAdmin = () => {
     setAdmin(false);
     window.history.pushState({}, "", "/");
