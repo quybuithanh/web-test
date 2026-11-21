@@ -21,11 +21,22 @@ import {
   Sun,
 } from "lucide-react";
 import { brand } from "./brand";
-import { products } from "./products";
 import { audienceCategories, productCategoryFilters } from "./categories";
-import type { Product } from "./products";
 import { adminEmail, supabase } from "./supabase";
 import "./style.css";
+
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  audience?: "NỮ" | "NAM";
+  sold?: boolean;
+  image: string;
+  size: string;
+  description: string;
+  images: string[];
+};
 
 type CartLine = { product: Product };
 type ProductRow = Product & { created_at?: string };
@@ -60,17 +71,12 @@ const productToRow = (product: Product) => ({
 function App() {
   const [admin, setAdmin] = useState(
     window.location.pathname.replace(/\/$/, "") === "/admin" ||
-      window.location.hash === "#admin",
+    window.location.hash === "#admin",
   );
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("tb-admin-dark") === "true",
   );
-  const [managedProducts, setManagedProducts] = useState<Product[]>(() =>
-    products.map((p) => ({
-      ...p,
-      audience: p.audience === "NỮ" ? "NỮ" : "NAM",
-    })),
-  );
+  const [managedProducts, setManagedProducts] = useState<Product[]>([]);
   const [authUserEmail, setAuthUserEmail] = useState("");
   const [authReady, setAuthReady] = useState(false);
   const [productsLoading, setProductsLoading] = useState(Boolean(supabase));
@@ -204,12 +210,12 @@ function App() {
       const parsedCart: unknown = savedCart ? JSON.parse(savedCart) : [];
       return Array.isArray(parsedCart)
         ? parsedCart.filter((line): line is CartLine =>
-            Boolean(
-              line?.product?.id &&
-              line.product.name &&
-              Number.isFinite(line.product.price),
-            ),
-          )
+          Boolean(
+            line?.product?.id &&
+            line.product.name &&
+            Number.isFinite(line.product.price),
+          ),
+        )
         : [];
     } catch {
       return [];
@@ -226,6 +232,7 @@ function App() {
   const getInitialUrlState = () => {
     const params = new URLSearchParams(window.location.search);
     const navParam = params.get("nav") as "home" | "NỮ" | "NAM" | null;
+    const audienceParam = params.get("aud") as "NỮ" | "NAM" | null;
     const catParam = params.get("cat");
     const subParam = params.get("sub") as
       | "all"
@@ -234,16 +241,17 @@ function App() {
       | "so-mi"
       | "polo"
       | null;
-    const audienceParam = params.get("aud") as "NỮ" | "NAM" | null;
 
     const initialAudience: "NỮ" | "NAM" =
-      audienceParam === "NỮ" ? "NỮ" : navParam === "NỮ" ? "NỮ" : "NAM";
+      audienceParam === "NỮ" || navParam === "NỮ" ? "NỮ" : "NAM";
     const initialNav: "home" | "NỮ" | "NAM" | null =
       navParam === "NỮ" || navParam === "NAM"
         ? navParam
-        : catParam
-          ? initialAudience
-          : "home";
+        : audienceParam === "NỮ" || audienceParam === "NAM"
+          ? audienceParam
+          : catParam
+            ? initialAudience
+            : "home";
     const initialCat = catParam || "Tất cả";
     const initialSub = subParam || "all";
 
@@ -353,9 +361,7 @@ function App() {
         else if (data?.length)
           setManagedProducts((data as ProductRow[]).map(productFromRow));
         else
-          setProductsError(
-            "Bảng Supabase chưa có sản phẩm; đang hiển thị danh sách mẫu.",
-          );
+          setProductsError("Chưa có sản phẩm nào trong cửa hàng.");
         setProductsLoading(false);
       });
     return () => {
@@ -469,8 +475,8 @@ function App() {
   const notifyOAuthSetup = (provider: string) =>
     setAuthNotice(
       "Đăng nhập " +
-        provider +
-        " chưa được kết nối. Cần cấu hình OAuth của cửa hàng trước khi sử dụng.",
+      provider +
+      " chưa được kết nối. Cần cấu hình OAuth của cửa hàng trước khi sử dụng.",
     );
   const add = (product: Product) => {
     if (product.sold) {
@@ -502,11 +508,26 @@ function App() {
   };
   useEffect(() => {
     if (admin) return;
-    const params = new URLSearchParams();
-    if (selectedNav && selectedNav !== "home") params.set("nav", selectedNav);
-    if (audience) params.set("aud", audience);
-    if (category && category !== "Tất cả") params.set("cat", category);
-    if (subCategory && subCategory !== "all") params.set("sub", subCategory);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("aud");
+
+    if (selectedNav && selectedNav !== "home") {
+      params.set("nav", selectedNav);
+    } else {
+      params.delete("nav");
+    }
+
+    if (category && category !== "Tất cả") {
+      params.set("cat", category);
+    } else {
+      params.delete("cat");
+    }
+
+    if (subCategory && subCategory !== "all") {
+      params.set("sub", subCategory);
+    } else {
+      params.delete("sub");
+    }
 
     const newQuery = params.toString()
       ? `?${params.toString()}`
@@ -722,7 +743,7 @@ function App() {
                       id: "",
                       name: "",
                       price: 0,
-                      category: "Áo thun",
+                      category: productCategoryFilters("NỮ")[0] || "Áo khoác",
                       audience: "NỮ",
                       image: "",
                       size: "",
@@ -955,7 +976,11 @@ function App() {
                 <label>
                   Danh mục
                   <select
-                    value={productForm.category}
+                    value={
+                      productCategories.includes(productForm.category)
+                        ? productForm.category
+                        : productCategories[0] || ""
+                    }
                     onChange={(e) =>
                       setProductForm({
                         ...productForm,
@@ -964,7 +989,7 @@ function App() {
                     }
                   >
                     {productCategories.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </label>
